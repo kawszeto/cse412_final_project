@@ -27,9 +27,11 @@ def deleteBooks():
                 Label(root, text="Still have copies").place(x=100, y=120)
         
     def deleteCopy():
-        cur.execute(f"select availability from copy where isbn = '{deleteIsbn.get()}' and copy_number = {deleteCopyNumber.get()}")
-        for availability in cur:
-            if availability[0] == True:
+        cur.execute(f"select * from copy where isbn = '{deleteIsbn.get()}' and copy_number = {deleteCopyNumber.get()}")
+        for row in cur:
+            if row[1] == True:
+                cur.execute(f"DELETE FROM borrowed WHERE isbn = '{deleteIsbn.get()}' and copy_number = {deleteCopyNumber.get()}")
+                cur.execute(f"DELETE FROM returned WHERE isbn = '{deleteIsbn.get()}' and copy_number = {deleteCopyNumber.get()}")
                 cur.execute(f"DELETE FROM copy WHERE isbn = '{deleteIsbn.get()}' and copy_number = {deleteCopyNumber.get()}")
                 conn.commit()
                 Label(root, text="This copy has been deleted").place(x=100, y=230)
@@ -38,7 +40,7 @@ def deleteBooks():
 
     #set frame
     root=Toplevel(screen)
-    root.geometry('300x300')
+    root.geometry('400x300')
 
     #set delete book
     lable1 = Label(root, text='enter book isbn')
@@ -117,17 +119,29 @@ def manageBookByIsbn():
 
     #set frame
     root=Toplevel(screen)
-    root.geometry('800x600')
+    root.geometry('400x200')
 
-    cur.execute(f"select books.title as title, copy.copy_number as copy_number, copy.availability as availability, borrowed.member_id as member_id, member.name as name from books, copy, borrowed, member where books.isbn = copy.isbn and copy.isbn = borrowed.isbn and copy.copy_number = borrowed.copy_number and borrowed.member_id = member.member_id and books.isbn = '{bookIsbn2.get()}'")
-    index = 0
-    for title, copy_number1, availability, member_id, name in cur:
-        if availability == True:
-            Label(root, text=f"{title}(copy: {copy_number1}) has been borrowed by {name}(member id: {member_id}), and has been returned").grid(row=index, column=0)
-            index += 1
-        else:
-            Label(root, text=f"{title}(copy: {copy_number1}) has been borrowed by {name}(member id: {member_id}), and hasn't been returned").grid(row=index, column=0)
-            index += 1
+    def returnBook(isbn, copy_number, member_id):
+        print(isbn)
+        print(copy_number)
+        print(member_id)
+        #update the borrowed table
+        cur.execute(f"UPDATE copy SET availability = True WHERE isbn = '{isbn}' and copy_number = {copy_number}")
+        #update the returned table
+        returnDate = date.today()
+        cur.execute(f"insert into returned(return_date, copy_number, isbn, member_id) values ('{returnDate}', {copy_number}, '{isbn}', {member_id})")
+        conn.commit()
+        print("succeesfully returned")
+
+    rowNum = 0
+    cur.execute(f"select distinct borrowed.copy_number, borrowed.member_id, borrowed.due_date from borrowed, copy where borrowed.isbn = '{bookIsbn2.get()}' and copy.availability = false and copy.isbn = borrowed.isbn")
+    for copy_number, member_id, due_date in cur:
+        Label(root, text=f"copy {copy_number} of {bookIsbn2.get()} borrowed by member {member_id} will due on {due_date}").grid(row=rowNum, column=0)
+        rowNum +=1
+        Button(root, text="mark as return", command=lambda copy_number=copy_number, member_id=member_id: returnBook(isbn=bookIsbn2.get(), copy_number=copy_number, member_id=member_id)).grid(row=rowNum, column=0)
+        rowNum += 1
+   
+            
 
 def findMemberById():
     #set query
@@ -136,18 +150,7 @@ def findMemberById():
 
     #set the frame and scrollbar
     root=Toplevel(screen)
-    root.geometry('600x600')
-    frame = Frame(root)
-    frame.pack(fill=BOTH, expand=1)
-    canvas = Canvas(frame)
-    canvas.pack(side=LEFT, fill=BOTH, expand=1)
-    scrollbar = ttk.Scrollbar(frame, orient=VERTICAL, command=canvas.yview)
-    scrollbar.pack(side=RIGHT, fill=Y)
-    canvas.configure(yscrollcommand=scrollbar.set)
-    canvas.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-    second_frame = Frame(canvas)
-    canvas.create_window((0,0), window=second_frame, anchor="nw")
-
+    root.geometry('400x200')
 
     def returnBook(isbn, copy_number):
         #update the borrowed table
@@ -160,26 +163,15 @@ def findMemberById():
         
 
     # set labels
-    cur.execute(f"select copy.isbn as isbn, copy.copy_number as copy_number, borrowed.due_date as due, member.member_id as member_id, member.name as name from copy, borrowed, member where copy.isbn = borrowed.isbn and copy.availability=False and borrowed.member_id = member.member_id and member.member_id = {member_id2.get()}")
     rowNum = 0
-    tempCopyNumber = 0
-    tempDueDate = date(2010, 2, 13)
-    for isbn, copy_number, due, member_id, name in cur:
-        if tempCopyNumber != copy_number:
-            tempCopyNumber = copy_number
-            if rowNum == 0:
-                Label(second_frame, text=f'{name} member id: {member_id} borrowed {isbn} (copy {copy_number}) which will due on {due}').grid(row=rowNum, column=0)
-                rowNum+=1
-                Button(second_frame, text="mark as return", command=lambda: returnBook(isbn=isbn, copy_number=copy_number)).grid(row=rowNum, column=0)
-                rowNum+=1
-            if tempDueDate != date(2010, 2, 13):
-                Label(second_frame, text=f'{name} member id: {member_id} borrowed {isbn} (copy {copy_number}) which will due on {due}').grid(row=rowNum, column=0)
-                rowNum+=1
-                Button(second_frame, text="mark as return", command=lambda: returnBook(isbn=isbn, copy_number=copy_number)).grid(row=rowNum, column=0)
-                rowNum+=1    
-        else:
-            if due>tempDueDate:
-                tempDueDate = due
+    cur.execute(f"select DISTINCT copy.copy_number, copy.isbn from borrowed, copy where copy.isbn = borrowed.isbn and copy.availability = false and borrowed.member_id = {member_id2.get()}")
+    for copy_number, isbn in cur:
+        Label(root, text=f"copy {copy_number} of {isbn} borrowed by member {member_id2.get()} hasn't been returned").grid(row=rowNum, column=0)
+        rowNum += 1
+        Button(root, text="Mark as returned", command=lambda isbn=isbn, copy_number=copy_number: returnBook(isbn=isbn, copy_number=copy_number)).grid(row=rowNum, column=0)
+        rowNum += 1
+    
+
 
 def checkMembers():
     #set query
@@ -281,14 +273,24 @@ def memberReturn():
     button.place(x=200, y=250)
     
 def findBookByAuthor():
-    labels = []
     #set query
     conn = psycopg2.connect(dbname = 'libraryManager', user="postgres", password="199814", host="127.0.0.1", port="5432")
     cur = conn.cursor()
 
-    #set frame
+    #set the frame and scrollbar
     root=Toplevel(screen)
-    root.geometry('500x500')
+    root.geometry('300x400')
+    frame = Frame(root)
+    frame.pack(fill=BOTH, expand=1)
+    canvas = Canvas(frame)
+    canvas.pack(side=LEFT, fill=BOTH, expand=1)
+    scrollbar = ttk.Scrollbar(frame, orient=VERTICAL, command=canvas.yview)
+    scrollbar.pack(side=RIGHT, fill=Y)
+    canvas.configure(yscrollcommand=scrollbar.set)
+    canvas.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+    second_frame = Frame(canvas)
+    canvas.create_window((0,0), window=second_frame, anchor="nw")
+
     #
     # J.R.R Tolkein
     #
@@ -297,52 +299,74 @@ def findBookByAuthor():
     for title, isbn, author, genre in cur:
         if bookAuthor.get() == author :
             #set labels
-            label1 = Label(root, text='Author: ' + author)
-            label1.place(x = 100, y = 80)
-            labels.append(Label(root, text='book title: ' + title))
-            labels[index].place(x=100, y=130+index*30)
-            index += 1
-            labels.append(Label(root, text='book isbn: ' + isbn))
-            labels[index].place(x=100, y=130+index*30)
-            index += 1
-            labels.append(Label(root, text='book genre: ' + genre))
-            labels[index].place(x=100, y=130+index*30)
-            index += 1
-            labels.append(Label(root, text='------------------------'))
-            labels[index].place(x=100, y=130+index*30)
-            index += 1
+            Label(second_frame, text='Author: ' + author).grid(row=index, column=0)
+            index +=1
+            Label(second_frame, text='book title: ' + title).grid(row=index, column=0)
+            index +=1
+            Label(second_frame, text='book isbn: ' + isbn).grid(row=index, column=0)
+            index +=1
+            Label(second_frame, text='book genre: ' + genre).grid(row=index, column=0)
+            index +=1
+            Button(second_frame, text="borrow").grid(row=index, column=0)
+            index +=1
 
 def findBookByGenre():
-    labels = []
     #set query
     conn = psycopg2.connect(dbname = 'libraryManager', user="postgres", password="199814", host="127.0.0.1", port="5432")
     cur = conn.cursor()
 
-    #set frame
+    #set the frame and scrollbar
     root=Toplevel(screen)
-    root.geometry('500x500')
+    root.geometry('300x400')
+    frame = Frame(root)
+    frame.pack(fill=BOTH, expand=1)
+    canvas = Canvas(frame)
+    canvas.pack(side=LEFT, fill=BOTH, expand=1)
+    scrollbar = ttk.Scrollbar(frame, orient=VERTICAL, command=canvas.yview)
+    scrollbar.pack(side=RIGHT, fill=Y)
+    canvas.configure(yscrollcommand=scrollbar.set)
+    canvas.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+    second_frame = Frame(canvas)
+    canvas.create_window((0,0), window=second_frame, anchor="nw")
+
+    def borrowBook1(isbn):
+        print(isbn)
+        cur.execute(f"select * from copy where isbn = '{isbn}'")
+        flag = 0
+        for copy_number, availability, isbn in cur:
+            if availability == True:
+                cur.execute(f"UPDATE copy SET availability = False WHERE isbn = '{isbn}' and copy_number = {copy_number}")
+                # update the borrowed table
+                borrowDate = date.today()
+                dueDate = borrowDate + timedelta(days=10)
+                cur.execute(f"insert into borrowed(issue_date, due_date, copy_number, isbn, member_id) values ('{borrowDate}', '{dueDate}', {copy_number}, '{isbn}', {member_id1})")
+                conn.commit()
+                flag = 1
+                Label(second_frame, text='Successfully borrowed').grid(row=0, column=0)
+                print(username1.get() + ' borrow ' + isbn)
+                break
+        if flag == 0:
+            Label(second_frame, text='No available copy, try again next time').grid(row=0, column=0)
+    
     #
     # Fantasy
     #
     cur.execute('SELECT title, isbn, author, genre FROM books')
-    index = 0
+    index = 1
     for title, isbn, author, genre in cur:
         if bookGenre.get() == genre :
             #set labels
-            label1 = Label(root, text='genre: ' + genre)
-            label1.place(x = 100, y = 80)
-            labels.append(Label(root, text='book title: ' + title))
-            labels[index].place(x=100, y=130+index*30)
-            index += 1
-            labels.append(Label(root, text='book isbn: ' + isbn))
-            labels[index].place(x=100, y=130+index*30)
-            index += 1
-            labels.append(Label(root, text='book author: ' + author))
-            labels[index].place(x=100, y=130+index*30)
-            index += 1
-            labels.append(Label(root, text='------------------------'))
-            labels[index].place(x=100, y=130+index*30)
-            index += 1
+            Label(second_frame, text='Genre: ' + genre).grid(row=index, column=0)
+            index +=1
+            Label(second_frame, text='book title: ' + title).grid(row=index, column=0)
+            index +=1
+            Label(second_frame, text='book isbn: ' + isbn).grid(row=index, column=0)
+            index +=1
+            Label(second_frame, text='book author: ' + author).grid(row=index, column=0)
+            index +=1
+            
+            Button(second_frame, text="borrow", command= lambda isbn=isbn: borrowBook1(isbn=isbn)).grid(row=index, column=0)
+            index +=1
 
 def findBookByIsbn():
     #set query
