@@ -590,7 +590,7 @@ def selectionScreen():
             button2 = Button(root, text="check books", padx=50, command=checkBooks)
             button2.place(x=70, y=100)
 
-            button3 = Button(root, text="check members", padx=50, command=checkMembers)
+            button3 = Button(root, text="check transactions", padx=50, command=checkMembers)
             button3.place(x=70, y=150)
 
             label1 = Label(root, text="Search member by id:")
