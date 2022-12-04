@@ -624,6 +624,8 @@ def selectionScreen():
             root=Toplevel(screen)
             root.geometry('500x500')
             root.title('Member Page')
+            button1 = Button(root, text="View all books", padx=50, command = memberViewBooks).place(x=70, y=50)
+            button1 = Button(root, text="search book",padx=50, command=memberSearch)
             button1 = Button(root, text="search book",padx=50, command=memberSearch)
             button1.place(x=70, y=100)
             button1 = Button(root, text="return book",padx=50, command=memberReturn)
