@@ -41,6 +41,7 @@ def deleteBooks():
     #set frame
     root=Toplevel(screen)
     root.geometry('400x300')
+    root.title('Delete Book')
 
     #set delete book
     lable1 = Label(root, text='enter book isbn')
@@ -75,6 +76,7 @@ def addBooks():
     #set frame
     root=Toplevel(screen)
     root.geometry('800x600')
+    root.title('Add Book')
 
     #set label
     lable1 = Label(root, text='enter book title')
@@ -150,7 +152,8 @@ def findMemberById():
 
     #set the frame and scrollbar
     root=Toplevel(screen)
-    root.geometry('400x200')
+    root.geometry('600x600')
+    root.title('Member info')
 
     def returnBook(isbn, copy_number):
         #update the borrowed table
@@ -171,7 +174,29 @@ def findMemberById():
         Button(root, text="Mark as returned", command=lambda isbn=isbn, copy_number=copy_number: returnBook(isbn=isbn, copy_number=copy_number)).grid(row=rowNum, column=0)
         rowNum += 1
     
+def memberInfo():
+    conn = psycopg2.connect(dbname = 'libraryManager', user="postgres", password="199814", host="127.0.0.1", port="5432")
+    cur = conn.cursor()
 
+    root=Toplevel(screen)
+    root.geometry('400x600')
+    root.title('Member info')
+    frame = Frame(root)
+    frame.pack(fill=BOTH, expand=1)
+    canvas = Canvas(frame)
+    canvas.pack(side=LEFT, fill=BOTH, expand=1)
+    scrollbar = ttk.Scrollbar(frame, orient=VERTICAL, command=canvas.yview)
+    scrollbar.pack(side=RIGHT, fill=Y)
+    canvas.configure(yscrollcommand=scrollbar.set)
+    canvas.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+    second_frame = Frame(canvas)
+    canvas.create_window((0,0), window=second_frame, anchor="nw")
+
+    rowNum = 0
+    cur.execute('SELECT member_id, name, address, email, phone FROM Member')
+    for member_id, name, address, email, phone in cur:
+            Label(second_frame, text=f'Member ID: {member_id}\nName: {name}\nAddress: {address}\nEmail: {email}\nPhone: {phone}').grid(row=rowNum, column=0)
+            rowNum += 1
 
 def checkMembers():
     #set query
@@ -180,7 +205,8 @@ def checkMembers():
 
     #set the frame and scrollbar
     root=Toplevel(screen)
-    root.geometry('600x600')
+    root.geometry('750x600')
+    root.title('Transactions')
     frame = Frame(root)
     frame.pack(fill=BOTH, expand=1)
     canvas = Canvas(frame)
@@ -207,6 +233,7 @@ def checkBooks():
     #set the frame and scrollbar
     root=Toplevel(screen)
     root.geometry('600x600')
+    root.title('Book info')
     frame = Frame(root)
     frame.pack(fill=BOTH, expand=1)
     canvas = Canvas(frame)
@@ -247,6 +274,7 @@ def memberReturn():
     #set frame
     root=Toplevel(screen)
     root.geometry('600x600')
+    root.title('Return book')
     #
     # 9780358380245
     # 1
@@ -280,6 +308,7 @@ def findBookByAuthor():
     #set the frame and scrollbar
     root=Toplevel(screen)
     root.geometry('300x400')
+    root.title('Book search')
     frame = Frame(root)
     frame.pack(fill=BOTH, expand=1)
     canvas = Canvas(frame)
@@ -318,6 +347,7 @@ def findBookByGenre():
     #set the frame and scrollbar
     root=Toplevel(screen)
     root.geometry('300x400')
+    root.title('Book search')
     frame = Frame(root)
     frame.pack(fill=BOTH, expand=1)
     canvas = Canvas(frame)
@@ -397,6 +427,7 @@ def findBookByIsbn():
     #set frame
     root=Toplevel(screen)
     root.geometry('500x500')
+    root.title('Book search')
     #
     # 9780358380245
     #
@@ -447,6 +478,7 @@ def findBookByTitle():
     #set frame
     root=Toplevel(screen)
     root.geometry('500x500')
+    root.title('Book search')
     #
     # The Fellowship of the Ring
     #
@@ -477,6 +509,7 @@ def memberSearch():
     #set frame
     root=Toplevel(screen)
     root.geometry('500x500')
+    root.title('Book search')
     #set label
     lable1 = Label(root, text='enter book title')
     lable1.place(x=70, y=50)
@@ -509,6 +542,31 @@ def memberSearch():
     button1 = Button(root, text="search",padx=50, command=findBookByAuthor)
     button1.place(x=100, y=225)
 
+def memberViewBooks():
+    conn = psycopg2.connect(dbname = 'libraryManager', user="postgres", password="199814", host="127.0.0.1", port="5432")
+    cur = conn.cursor()
+
+    #set the frame and scrollbar
+    root=Toplevel(screen)
+    root.geometry('300x600')
+    root.title('All books')
+    frame = Frame(root)
+    frame.pack(fill=BOTH, expand=1)
+    canvas = Canvas(frame)
+    canvas.pack(side=LEFT, fill=BOTH, expand=1)
+    scrollbar = ttk.Scrollbar(frame, orient=VERTICAL, command=canvas.yview)
+    scrollbar.pack(side=RIGHT, fill=Y)
+    canvas.configure(yscrollcommand=scrollbar.set)
+    canvas.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+    second_frame = Frame(canvas)
+    canvas.create_window((0,0), window=second_frame, anchor="nw")
+
+    rowNum = 0
+    cur.execute('SELECT title, isbn, author, publisher, genre FROM books')
+    for title, isbn, author, publisher, genre in cur:
+            Label(second_frame, text=f'Title: {title}\nISBN: {isbn}\nAuthor: {author}\nPublisher: {publisher}\nGenre: {genre}').grid(row=rowNum, column=0)
+            rowNum += 1
+    
 def selectionScreen():
     global member_id1   #used for member sites
     global member_id2   #used for admin sites
@@ -522,8 +580,12 @@ def selectionScreen():
         if username1.get() == username and password1.get() == password:
             root=Toplevel(screen)
             root.geometry('500x500')
+            root.title('Admin Page')
             label0 = Label(root, text='admin page')
-            label0.place(x=30, y=50)
+            label0.place(x=30, y=20)
+
+            button1 = Button(root, text="view member info", padx=50, command=memberInfo)
+            button1.place(x=70, y=50)
 
             button2 = Button(root, text="check books", padx=50, command=checkBooks)
             button2.place(x=70, y=100)
@@ -561,6 +623,7 @@ def selectionScreen():
         if username1.get() == username and password1.get() == password:
             root=Toplevel(screen)
             root.geometry('500x500')
+            root.title('Member Page')
             button1 = Button(root, text="search book",padx=50, command=memberSearch)
             button1.place(x=70, y=100)
             button1 = Button(root, text="return book",padx=50, command=memberReturn)
@@ -575,6 +638,7 @@ def loginScreen():
 
     screen = Tk()
     screen.geometry('500x500')
+    screen.title('Library Login')
 
     #label
     lable1 = Label(text='username')
